@@ -20,18 +20,18 @@ namespace CoreShop\Bundle\StorageListBundle\EventListener;
 
 use CoreShop\Component\StorageList\Context\StorageListContextInterface;
 use CoreShop\Component\StorageList\Context\StorageListNotFoundException;
+use Pimcore\Cache;
 use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
-final class SessionSubscriber implements EventSubscriberInterface
+final class CacheListener implements EventSubscriberInterface
 {
     public function __construct(
         private PimcoreContextResolver $pimcoreContext,
         private StorageListContextInterface $context,
-        private string $sessionKeyName,
     ) {
     }
 
@@ -69,13 +69,16 @@ final class SessionSubscriber implements EventSubscriberInterface
             return;
         }
 
-        if (null !== $list->getId()) {
-            $session = $request->getSession();
+        if ($list->getId()) {
+            foreach ($list->getItems() as $item) {
+                if (!$item->getId()) {
+                    continue;
+                }
 
-            $session->set(
-                sprintf('%s', $this->sessionKeyName),
-                $list->getId(),
-            );
+                Cache::addIgnoredTagOnSave('object_' . $item->getId());
+            }
+
+            Cache::addIgnoredTagOnSave('object_' . $list->getId());
         }
     }
 }
